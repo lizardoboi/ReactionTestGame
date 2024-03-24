@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <title>Reaction Test</title>
+    <!-- Стили для canvas, кнопки и результата -->
+    <style>
+        canvas {
+            border: 3px solid black;
+            border-radius: 15px;
+            margin: 150px 450px;
+        }
+
+        #Result {
+            position: absolute;
+            z-index: 1;
+            visibility: hidden;
+            text-transform: uppercase;
+            font-family: "Comic Sans MS";
+            font-size: 30px;
+            font-weight: bold;
+            margin-left: 1000px;
+            margin-top: 100px;
+        }
+
+        button {
+            position: absolute;
+            font-family: "Comic Sans MS";
+            font-size: 30px;
+            margin-left: -820px;
+            margin-top: 570px;
+            border-radius: 15px
+        }
+    </style>
+</head>
+<body onLoad="Init()">
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script>
+    // Объявление конструктора для спрайтов взрыва
+    var Expl = function (filename, width_frames, height_frames) {
+        this.sprite = new Image();
+        this.sprite.src = filename;
+        this.width_frames = width_frames;
+        this.height_frames = height_frames;
+        this.frames = width_frames * height_frames;
+        // Метод для проигрывания анимации взрыва
+        this.playanim = function (expltime, xpos, ypos, newwidth, newheight) {
+            var frame = Math.floor(((expltimedefault - expltime) * this.frames) / expltimedefault);
+            var swidth = this.sprite.width;
+            var sheight = this.sprite.height;
+            var sx = swidth * (frame % this.width_frames);
+            var sy = sheight * Math.floor(frame / this.width_frames);
+            swidth = Math.floor(swidth / this.width_frames);
+            sheight = Math.floor(sheight / this.height_frames);
+            sx = Math.floor(sx / this.width_frames);
+            sy = Math.floor(sy / this.height_frames);
+            // Отображение спрайта взрыва на canvas
+            ctx.drawImage(this.sprite, sx, sy, swidth, sheight, xpos, ypos, newwidth, newheight);
+        }
+        // Проверка загрузки изображения
+        this.check = function () {
+            return this.sprite.complete;
+        }
+    };
+
+    var expls = []; // Массив объектов Expl
+    var cur = 0; // Индекс текущего спрайта взрыва
+    var time = 0; // Время игры
+    var count = 0; // Количество успешных кликов по пузырю
+    var totalcount = 0; // Общее количество кликов
+    var defaulttime = 700; // Время появления нового пузыря по умолчанию
+    var bubbletime = 0; // Время до появления следующего пузыря
+    var expltime = 0; // Время анимации взрыва
+    var expltimedefault = 500; // Длительность анимации взрыва по умолчанию
+    var radius = 40; // Радиус пузыря
+    var explsprite = new Image(); // Изображение взрыва
+    var xpos = 0; // Позиция X пузыря
+    var buttontimedefault = 5000; // Время до отображения кнопки Start по умолчанию
+    var gametime = 0; // Время игры
+    var ypos = 0; // Позиция Y пузыря
+    var canvas; // Canvas элемент
+    var colors = ["red", "blue", "orange", "green", "magenta", "coral"]; // Массив цветов для пузырей
+    var colorindex = 0; // Индекс текущего цвета пузыря
+    var bubblecount = 0; // Счетчик количества пузырей
+    var ctx; // Контекст рисования на canvas
+    var frame; // Идентификатор кадра анимации
+
+    // Инициализация
+    function Init() {
+        canvas = document.getElementById("field");
+        ctx = canvas.getContext("2d");
+        explsprite.src = 'popal.png'; // Путь к изображению взрыва
+        expls.push(new Expl('popal.png', 1, 1)); // Добавление объекта Expl с изображением взрыва
+        expls.push(new Expl('popal-sprite.png', 1, 1)); // Добавление объекта Expl с анимированным изображением взрыва
+        checkForAllImagesLoaded(); // Проверка загрузки всех изображений
+    }
+
+    // Проверка загрузки всех изображений
+    function checkForAllImagesLoaded() {
+        for (var i = 0; i < expls.length; i++) {
+            if (!expls[i].check()) {
+                setTimeout(checkForAllImagesLoaded, 50);
+                return;
+            }
+        }
+        $("#StartButton").show(); // Показ кнопки Start после загрузки всех изображений
+        $("#StartButton").attr("onClick", "start()"); // Добавление обработчика клика на кнопку Start
+    }
+
+    // Остановка игры
+    function stop() {
+        cancelAnimationFrame(frame); // Остановка анимации
+        canvas.removeEventListener("mousedown", mouseclick); // Удаление обработчика клика
+        bubbletime = 0; // Обнуление времени до появления следующего пузыря
+        expltime = 0; // Обнуление времени анимации взрыва
+        var btn = document.getElementById("StartButton"); // Получение кнопки Start
+        btn.onclick = start; // Добавление обработчика клика на кнопку Start
+        btn.textContent = "Start"; // Изменение текста кнопки на Start
+        var res = document.getElementById("Result"); // Получение элемента для вывода результата
+        res.innerHTML = "You clicked on: " + count + " bubbels. ^_^" + "<br>Bubbles Generated: " + bubblecount + "."
+        // Вывод результата
+        if (count > 0)
+            res.innerHTML += "<br>Percentage of successful clicks: " + ((count * 100) / totalcount).toFixed(2) + "%.";
+        res.style.visibility = "visible"; // Отображение результата
+        ctx.clearRect(0, 0, canvas.width, canvas.height); // Очистка canvas
+    }
+
+    var lastFrameTime = 0;
+
+    // Запуск игры
+    function start() {
+        gametime = 0; // Обнуление времени игры
+        ctx.clearRect(0, 0, canvas.width, canvas.height); // Очистка canvas
+        count = 0; // Обнуление количества успешных кликов
+        totalcount = 0; // Обнуление общего количества кликов
+        bubblecount = 0; // Обнуление счетчика количества пузырей
+        canvas.addEventListener("mousedown", mouseclick); // Добавление обработчика клика на canvas
+        genBubble(); // Генерация первого пузыря
+        var res = document.getElementById("Result"); // Получение элемента для вывода результата
+        res.style.visibility = 'hidden'; // Скрытие результата
+        var btn = document.getElementById("StartButton"); // Получение кнопки Start
+        btn.onclick = stop; // Добавление обработчика клика на кнопку Stop
+        btn.style.visibility = 'hidden'; // Скрытие кнопки Start
+        btn.textContent = "Stop"; // Изменение текста кнопки на Stop
+        lastFrameTime = performance.now(); // Получение времени предыдущего кадра
+        frame = requestAnimationFrame(loop); // Запуск анимации
+    }
+
+    // Цикл игры
+    function loop(timestamp) {
+        frame = requestAnimationFrame(loop); // Запуск следующего кадра анимации
+        var delta = timestamp - lastFrameTime; // Вычисление времени между кадрами
+        lastFrameTime = timestamp; // Обновление времени предыдущего кадра
+        update(delta); // Обновление состояния игры
+        draw(); // Отрисовка игровых объектов
+    }
+
+    // Обновление состояния игры
+    function update(delta) {
+        gametime += delta; // Обновление времени игры
+        if (gametime > buttontimedefault) { // Если прошло время до отображения кнопки Start
+            var btn = document.getElementById("StartButton"); // Получение кнопки Start
+            btn.style.visibility = 'visible'; // Отображение кнопки Start
+        }
+        bubbletime -= delta; // Уменьшение времени до появления следующего пузыря
+        if (expltime == 0) { // Если время анимации взрыва равно 0
+            if (bubbletime < 0) { // Если время до появления следующего пузыря меньше 0
+                genBubble(); // Генерация нового пузыря
+            }
+        } else { // Иначе
+            expltime -= delta; // Уменьшение времени анимации взрыва
+            if (expltime < 0) { // Если время анимации взрыва меньше 0
+                expltime = 0; // Обнуление времени анимации взрыва
+                genBubble(); // Генерация нового пузыря
+            }
+        }
+    }
+
+    // Отрисовка игровых объектов
+    function draw() {
+        ctx.clearRect(0, 0, canvas.width, canvas.height); // Очистка canvas
+        if (expltime == 0) { // Если время анимации взрыва равно 0
+            ctx.beginPath(); // Начало нового пути
+            ctx.arc(xpos, ypos, radius, 0, 2 * Math.PI); // Создание окружности (пузыря)
+            ctx.fillStyle = colors[colorindex]; // Задание цвета заливки
+            ctx.fill(); // Заливка окружности
+        } else { // Иначе
+            // Воспроизведение анимации взрыва
+            expls[cur].playanim(expltime, xpos - radius, ypos - radius, radius * 2, radius * 2);
+        }
+    }
+
+    // Генерация нового пузыря
+    function genBubble() {
+        xpos = Math.round(Math.random() * (canvas.width - 2 * radius) + radius); // Случайная позиция X пузыря
+        ypos = Math.round(Math.random() * (canvas.height - 2 * radius) + radius); // Случайная позиция Y пузыря
+        var t = Math.random(); // Случайное число
+        bubbletime = (t + 0.7) * defaulttime; // Установка времени до появления следующего пузыря
+        colorindex = (colorindex + 1) % 6; // Получение следующего цвета из массива цветов
+        bubblecount += 1; // Увеличение счетчика количества пузырей
+    }
+
+    // Обработчик клика на пузырь
+    function mouseclick(event) {
+        totalcount++; // Увеличение общего количества кликов
+        if (expltime == 0) { // Если время анимации взрыва равно 0
+            var x = event.pageX; // Позиция курсора по оси X
+            var y = event.pageY; // Позиция курсора по оси Y
+            x -= canvas.offsetLeft; // Вычисление абсолютной позиции курсора по оси X
+            y -= canvas.offsetTop; // Вычисление абсолютной позиции курсора по оси Y
+            x = x - xpos; // Вычисление относительной позиции курсора по оси X
+            y = y - ypos; // Вычисление относительной позиции курсора по оси Y
+            if ((x * x + y * y) <= (radius * radius)) { // Проверка, попал ли клик в область пузыря
+                count++; // Увеличение количества успешных кликов
+                cur = 1 - cur; // Переключение на следующий спрайт взрыва
+                expltime = expltimedefault; // Установка времени анимации взрыва
+            }
+        }
+    }
+</script>
+<div id="Result"></div> <!-- Элемент для вывода результата -->
+<canvas id="field" width="400" height="400"></canvas> <!-- Canvas для игрового поля -->
+<button id="StartButton">Start</button> <!-- Кнопка для запуска/остановки игры -->
+</body>
+</html>
